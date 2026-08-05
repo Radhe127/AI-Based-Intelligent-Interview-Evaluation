@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getNextQuestion, submitAnswer, finishInterview } from "../api/client.js";
+import { fetchInterviewStatus, getNextQuestion, submitAnswer, finishInterview } from "../api/client.js";
 import { useSpeech } from "../hooks/useSpeech.js";
 
-const MAX_QUESTIONS = 5;
+const MAX_QUESTIONS = 10;
 
 export default function InterviewRoom() {
   const { interviewId } = useParams();
   const navigate = useNavigate();
   const speech = useSpeech();
+  const initDone = useRef(false);
 
   const [question, setQuestion] = useState(null);
   const [answerText, setAnswerText] = useState("");
@@ -19,12 +20,14 @@ export default function InterviewRoom() {
   const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState("");
   const [hasSpoken, setHasSpoken] = useState(false);
+  const [usedMic, setUsedMic] = useState(false);
 
   async function loadNextQuestion() {
     setError("");
     setLastScore(null);
     setAnswerText("");
     setHasSpoken(false);
+    setUsedMic(false);
     speech.resetTranscript();
     setLoadingQ(true);
     try {
@@ -32,14 +35,46 @@ export default function InterviewRoom() {
       setQuestion(res.data);
       setQuestionCount((c) => c + 1);
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to load question");
+      const msg = err.response?.data?.error || "Failed to load question";
+      setError(msg);
     } finally {
       setLoadingQ(false);
     }
   }
 
+  // On mount: fetch server-side status to initialise question count correctly
+  // and guard against re-entering a completed interview.
   useEffect(() => {
-    loadNextQuestion();
+    if (initDone.current) return; // React StrictMode double-invoke guard
+    initDone.current = true;
+
+    async function init() {
+      try {
+        const res = await fetchInterviewStatus(interviewId);
+        const { interview, questionCount: existing } = res.data;
+
+        // Already done → go straight to the report
+        if (interview.status === "completed") {
+          navigate(`/report/${interviewId}`, { replace: true });
+          return;
+        }
+
+        setQuestionCount(existing);
+
+        // Already at or past limit → show only the finish button, no new question
+        if (existing >= MAX_QUESTIONS) {
+          setLoadingQ(false);
+          return;
+        }
+
+        loadNextQuestion();
+      } catch {
+        // Fallback: just try loading a question; backend will reject if needed
+        loadNextQuestion();
+      }
+    }
+
+    init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interviewId]);
 
@@ -63,6 +98,7 @@ export default function InterviewRoom() {
     if (speech.isListening) {
       speech.stopListening();
     } else {
+      setUsedMic(true);
       speech.startListening();
     }
   }
@@ -78,7 +114,7 @@ export default function InterviewRoom() {
       const res = await submitAnswer(interviewId, {
         questionId: question._id,
         answerText,
-        transcribedVoice: speech.isSupported,
+        transcribedVoice: usedMic, // only true when the mic was actually used
       });
       setLastScore(res.data.score);
     } catch (err) {
@@ -120,42 +156,55 @@ export default function InterviewRoom() {
 
         {!loadingQ && question && <div className="question-box">{question.question}</div>}
 
+        {/* At the limit with no question loaded yet — just show finish */}
+        {!loadingQ && !question && reachedLimit && (
+          <div className="question-box" style={{ color: "var(--text-dim)" }}>
+            You've answered all {MAX_QUESTIONS} questions. Finish to see your scorecard.
+          </div>
+        )}
+
         {error && <div className="error-box">{error}</div>}
 
         {!lastScore ? (
-          <form onSubmit={handleSubmitAnswer}>
-            {speech.isSupported && (
-              <>
-                <button
-                  type="button"
-                  className={`mic-btn ${speech.isListening ? "listening" : ""}`}
-                  onClick={handleMicToggle}
+          question ? (
+            <form onSubmit={handleSubmitAnswer}>
+              {speech.isSupported && (
+                <>
+                  <button
+                    type="button"
+                    className={`mic-btn ${speech.isListening ? "listening" : ""}`}
+                    onClick={handleMicToggle}
+                    disabled={loadingQ}
+                  >
+                    {speech.isListening ? "■" : "🎤"}
+                  </button>
+                  <p className="muted" style={{ marginBottom: 14 }}>
+                    {speech.isListening ? "Listening... tap to stop" : "Tap the mic to answer out loud"}
+                  </p>
+                </>
+              )}
+
+              <div style={{ textAlign: "left" }}>
+                <label className="label">
+                  {speech.isSupported ? "Transcript (you can edit before submitting)" : "Your answer"}
+                </label>
+                <textarea
+                  value={answerText}
+                  onChange={(e) => setAnswerText(e.target.value)}
+                  placeholder="Your answer will appear here as you speak, or type it directly..."
                   disabled={loadingQ}
-                >
-                  {speech.isListening ? "■" : "🎤"}
-                </button>
-                <p className="muted" style={{ marginBottom: 14 }}>
-                  {speech.isListening ? "Listening... tap to stop" : "Tap the mic to answer out loud"}
-                </p>
-              </>
-            )}
+                />
+              </div>
 
-            <div style={{ textAlign: "left" }}>
-              <label className="label">
-                {speech.isSupported ? "Transcript (you can edit before submitting)" : "Your answer"}
-              </label>
-              <textarea
-                value={answerText}
-                onChange={(e) => setAnswerText(e.target.value)}
-                placeholder="Your answer will appear here as you speak, or type it directly..."
-                disabled={loadingQ}
-              />
-            </div>
-
-            <button type="submit" className="btn btn-primary btn-block" disabled={submitting || loadingQ}>
-              {submitting ? "Evaluating your answer..." : "Submit Answer"}
+              <button type="submit" className="btn btn-primary btn-block" disabled={submitting || loadingQ}>
+                {submitting ? "Evaluating your answer..." : "Submit Answer"}
+              </button>
+            </form>
+          ) : reachedLimit ? (
+            <button className="btn btn-primary btn-block btn-lg" onClick={handleFinish} disabled={finishing}>
+              {finishing ? "Generating your scorecard..." : "Finish & View Scorecard →"}
             </button>
-          </form>
+          ) : null
         ) : (
           <div>
             <div className="score-row">

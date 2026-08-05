@@ -24,6 +24,8 @@ export const fetchLatestResume = () => api.get("/resume/latest");
 
 // Interviews
 export const startInterview = (data) => api.post("/interviews/start", data);
+export const fetchInterviewStatus = (interviewId) =>
+  api.get(`/interviews/${interviewId}/status`);
 export const getNextQuestion = (interviewId) =>
   api.post(`/interviews/${interviewId}/next-question`);
 export const submitAnswer = (interviewId, payload) =>

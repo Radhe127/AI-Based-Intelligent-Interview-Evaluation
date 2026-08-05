@@ -14,6 +14,8 @@ const { generateQuestion } = require("../mcp/questionTool");
 const { evaluateAnswer } = require("../mcp/evaluationTool");
 const { generateFeedback } = require("../mcp/feedbackTool");
 
+const MAX_QUESTIONS = 10;
+
 // Schedule + immediately start a real-time interview (resume required)
 router.post("/start", requireAuth, async (req, res) => {
   try {
@@ -42,12 +44,36 @@ router.post("/start", requireAuth, async (req, res) => {
   }
 });
 
+// Get interview status + existing question count (used by InterviewRoom on mount)
+router.get("/:interviewId/status", requireAuth, async (req, res) => {
+  try {
+    const { interviewId } = req.params;
+    const interview = await Interview.findOne({ _id: interviewId, userId: req.userId });
+    if (!interview) return res.status(404).json({ error: "Interview not found" });
+
+    const questionCount = await Question.countDocuments({ interviewId });
+    res.json({ interview, questionCount, maxQuestions: MAX_QUESTIONS });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch interview status" });
+  }
+});
+
 // Generate the next question
 router.post("/:interviewId/next-question", requireAuth, async (req, res) => {
   try {
     const { interviewId } = req.params;
     const interview = await Interview.findOne({ _id: interviewId, userId: req.userId });
     if (!interview) return res.status(404).json({ error: "Interview not found" });
+
+    if (interview.status === "completed") {
+      return res.status(409).json({ error: "This interview is already completed" });
+    }
+
+    const existingCount = await Question.countDocuments({ interviewId });
+    if (existingCount >= MAX_QUESTIONS) {
+      return res.status(400).json({ error: "Question limit reached. Finish the interview to see your scorecard." });
+    }
 
     const candidateContext = await getCandidateContext(req.userId);
     const previousQuestions = (await Question.find({ interviewId })).map((q) => q.question);
@@ -62,7 +88,7 @@ router.post("/:interviewId/next-question", requireAuth, async (req, res) => {
     const question = await Question.create({
       interviewId,
       question: questionText,
-      order: previousQuestions.length + 1,
+      order: existingCount + 1,
     });
 
     res.json(question);
@@ -83,9 +109,15 @@ router.post("/:interviewId/answer", requireAuth, async (req, res) => {
     }
 
     const interview = await Interview.findOne({ _id: interviewId, userId: req.userId });
-    const question = await Question.findById(questionId);
-    if (!interview || !question) {
-      return res.status(404).json({ error: "Interview or question not found" });
+    if (!interview) return res.status(404).json({ error: "Interview not found" });
+
+    if (interview.status === "completed") {
+      return res.status(409).json({ error: "This interview is already completed" });
+    }
+
+    const question = await Question.findOne({ _id: questionId, interviewId });
+    if (!question) {
+      return res.status(404).json({ error: "Question not found for this interview" });
     }
 
     const answer = await Answer.create({
@@ -101,12 +133,15 @@ router.post("/:interviewId/answer", requireAuth, async (req, res) => {
       difficulty: interview.difficulty,
     });
 
+    // Clamp scores to 0-10
+    const clamp = (v) => Math.min(10, Math.max(0, Number(v) || 0));
+
     const score = await Score.create({
       interviewId,
       questionId,
-      technicalScore: evaluation.technicalScore,
-      communicationScore: evaluation.communicationScore,
-      overallScore: evaluation.overallScore,
+      technicalScore: clamp(evaluation.technicalScore),
+      communicationScore: clamp(evaluation.communicationScore),
+      overallScore: clamp(evaluation.overallScore),
       remarks: evaluation.remarks,
     });
 
@@ -117,27 +152,25 @@ router.post("/:interviewId/answer", requireAuth, async (req, res) => {
   }
 });
 
-// Finish interview -> generate final scorecard
+// Finish interview -> generate final scorecard (idempotent)
 router.post("/:interviewId/finish", requireAuth, async (req, res) => {
   try {
     const { interviewId } = req.params;
     const interview = await Interview.findOne({ _id: interviewId, userId: req.userId });
     if (!interview) return res.status(404).json({ error: "Interview not found" });
 
-    const questions = await Question.find({ interviewId }).sort({ order: 1 });
-    const qaRecords = [];
-
-    for (const q of questions) {
-      const answer = await Answer.findOne({ questionId: q._id }).sort({ createdAt: -1 });
-      const score = await Score.findOne({ questionId: q._id }).sort({ createdAt: -1 });
-      qaRecords.push({
-        question: q.question,
-        answer: answer ? answer.answer : null,
-        technicalScore: score ? score.technicalScore : null,
-        communicationScore: score ? score.communicationScore : null,
-        overallScore: score ? score.overallScore : null,
-      });
+    // Idempotent: return the existing report if the interview is already done
+    if (interview.status === "completed") {
+      const existingReport = await FeedbackReport.findOne({ interviewId });
+      if (existingReport) {
+        const questions = await Question.find({ interviewId }).sort({ order: 1 });
+        const qaRecords = await buildQARecords(questions);
+        return res.json({ report: existingReport, qaRecords });
+      }
     }
+
+    const questions = await Question.find({ interviewId }).sort({ order: 1 });
+    const qaRecords = await buildQARecords(questions);
 
     const candidateContext = await getCandidateContext(req.userId);
 
@@ -148,17 +181,9 @@ router.post("/:interviewId/finish", requireAuth, async (req, res) => {
     });
 
     const validRecords = qaRecords.filter((r) => r.overallScore !== null);
-    const averageScore =
+    const avg = (key) =>
       validRecords.length > 0
-        ? validRecords.reduce((a, b) => a + b.overallScore, 0) / validRecords.length
-        : 0;
-    const technicalAvg =
-      validRecords.length > 0
-        ? validRecords.reduce((a, b) => a + b.technicalScore, 0) / validRecords.length
-        : 0;
-    const communicationAvg =
-      validRecords.length > 0
-        ? validRecords.reduce((a, b) => a + b.communicationScore, 0) / validRecords.length
+        ? Number((validRecords.reduce((a, b) => a + b[key], 0) / validRecords.length).toFixed(2))
         : 0;
 
     const report = await FeedbackReport.create({
@@ -168,9 +193,9 @@ router.post("/:interviewId/finish", requireAuth, async (req, res) => {
       summary: feedback.summary,
       resumeAlignment: feedback.resumeAlignment,
       recommendedNextSteps: feedback.recommendedNextSteps,
-      averageScore: Number(averageScore.toFixed(2)),
-      technicalAvg: Number(technicalAvg.toFixed(2)),
-      communicationAvg: Number(communicationAvg.toFixed(2)),
+      averageScore: avg("overallScore"),
+      technicalAvg: avg("technicalScore"),
+      communicationAvg: avg("communicationScore"),
     });
 
     interview.status = "completed";
@@ -192,20 +217,7 @@ router.get("/:interviewId/report", requireAuth, async (req, res) => {
 
     const report = await FeedbackReport.findOne({ interviewId });
     const questions = await Question.find({ interviewId }).sort({ order: 1 });
-
-    const qaRecords = [];
-    for (const q of questions) {
-      const answer = await Answer.findOne({ questionId: q._id }).sort({ createdAt: -1 });
-      const score = await Score.findOne({ questionId: q._id }).sort({ createdAt: -1 });
-      qaRecords.push({
-        question: q.question,
-        answer: answer ? answer.answer : null,
-        technicalScore: score ? score.technicalScore : null,
-        communicationScore: score ? score.communicationScore : null,
-        overallScore: score ? score.overallScore : null,
-        remarks: score ? score.remarks : "",
-      });
-    }
+    const qaRecords = await buildQARecords(questions, true);
 
     res.json({ interview, report, qaRecords });
   } catch (err) {
@@ -214,14 +226,54 @@ router.get("/:interviewId/report", requireAuth, async (req, res) => {
   }
 });
 
-// List all interviews for the logged-in candidate (dashboard history)
+// List all interviews for the logged-in candidate (dashboard history) — includes scores
 router.get("/", requireAuth, async (req, res) => {
   try {
     const interviews = await Interview.find({ userId: req.userId }).sort({ createdAt: -1 });
-    res.json({ interviews });
+
+    // Attach averageScore from FeedbackReport in a single bulk query
+    const reports = await FeedbackReport.find({
+      interviewId: { $in: interviews.map((iv) => iv._id) },
+    });
+    const reportMap = {};
+    for (const r of reports) {
+      reportMap[r.interviewId.toString()] = r;
+    }
+
+    const enriched = interviews.map((iv) => {
+      const r = reportMap[iv._id.toString()];
+      return {
+        ...iv.toObject(),
+        averageScore: r ? r.averageScore : null,
+        technicalAvg: r ? r.technicalAvg : null,
+        communicationAvg: r ? r.communicationAvg : null,
+      };
+    });
+
+    res.json({ interviews: enriched });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch interviews" });
   }
 });
+
+// ── helper ───────────────────────────────────────────────────────────────────
+
+async function buildQARecords(questions, includeRemarks = false) {
+  const records = [];
+  for (const q of questions) {
+    const answer = await Answer.findOne({ questionId: q._id }).sort({ createdAt: -1 });
+    const score = await Score.findOne({ questionId: q._id }).sort({ createdAt: -1 });
+    const record = {
+      question: q.question,
+      answer: answer ? answer.answer : null,
+      technicalScore: score ? score.technicalScore : null,
+      communicationScore: score ? score.communicationScore : null,
+      overallScore: score ? score.overallScore : null,
+    };
+    if (includeRemarks) record.remarks = score ? score.remarks : "";
+    records.push(record);
+  }
+  return records;
+}
 
 module.exports = router;

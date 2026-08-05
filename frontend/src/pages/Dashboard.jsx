@@ -3,6 +3,17 @@ import { Link, useNavigate } from "react-router-dom";
 import { uploadResume, fetchLatestResume, listInterviews } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
+function ScoreBadge({ label, value }) {
+  const score = value ?? 0;
+  const color = score >= 7 ? "var(--color-success, #2d9e6b)" : score >= 5 ? "var(--color-warn, #d97706)" : "var(--color-danger, #dc2626)";
+  return (
+    <div style={{ textAlign: "center", minWidth: 60 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color }}>{score.toFixed(1)}</div>
+      <div style={{ fontSize: 11, color: "var(--text-dim)" }}>{label}</div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -253,11 +264,23 @@ export default function Dashboard() {
           <p className="muted">No interviews yet. Start your first one above.</p>
         ) : (
           interviews.map((iv) => (
-            <div className="history-row" key={iv._id}>
-              <div>
+            <div className="history-row" key={iv._id} style={{ flexWrap: "wrap", gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 180 }}>
                 <strong>{iv.technology}</strong>{" "}
                 <span className="muted">· {iv.difficulty} · {iv.mode}</span>
+                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                  {new Date(iv.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                </div>
               </div>
+
+              {iv.status === "completed" && iv.averageScore !== null && iv.averageScore !== undefined ? (
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <ScoreBadge label="Overall" value={iv.averageScore} />
+                  <ScoreBadge label="Technical" value={iv.technicalAvg} />
+                  <ScoreBadge label="Communication" value={iv.communicationAvg} />
+                </div>
+              ) : null}
+
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <span className={`status-pill ${iv.status === "completed" ? "completed" : "in-progress"}`}>
                   {iv.status}
