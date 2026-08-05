@@ -12,14 +12,28 @@ const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 
-// Allow any configured origin, a comma-separated list, or all origins in dev
+// CORS: accept configured origins + any Cloud Shell preview origin automatically
 const rawOrigin = process.env.CLIENT_ORIGIN;
-const corsOrigin = rawOrigin
-  ? rawOrigin.includes(",")
-    ? rawOrigin.split(",").map((s) => s.trim())
-    : rawOrigin
-  : true; // allow all origins when CLIENT_ORIGIN is not set (local / Replit dev)
-app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(
+  cors({
+    credentials: true,
+    origin: (incomingOrigin, callback) => {
+      // Non-browser requests (curl, server-to-server) have no Origin header
+      if (!incomingOrigin) return callback(null, true);
+      // Always allow Google Cloud Shell web-preview origins
+      if (incomingOrigin.endsWith(".cloudshell.dev")) return callback(null, true);
+      // Always allow Replit dev-domain previews
+      if (incomingOrigin.endsWith(".replit.dev") || incomingOrigin.endsWith(".repl.co"))
+        return callback(null, true);
+      // No CLIENT_ORIGIN configured → allow everything (local dev)
+      if (!rawOrigin) return callback(null, true);
+      // Match against the configured list
+      const allowed = rawOrigin.split(",").map((s) => s.trim());
+      if (allowed.includes(incomingOrigin)) return callback(null, true);
+      return callback(new Error(`CORS: origin ${incomingOrigin} not allowed`));
+    },
+  })
+);
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/api/health", (req, res) => {
