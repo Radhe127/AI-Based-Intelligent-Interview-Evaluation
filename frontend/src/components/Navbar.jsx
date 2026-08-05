@@ -30,6 +30,9 @@ export default function Navbar() {
         <div className="nav-cta">
           {user ? (
             <>
+              <Link to="/profile" className="btn btn-ghost btn-sm">
+                Profile
+              </Link>
               <Link to="/dashboard" className="btn btn-ghost btn-sm">
                 Dashboard
               </Link>

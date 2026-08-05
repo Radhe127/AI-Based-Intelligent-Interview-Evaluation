@@ -27,7 +27,24 @@ Produce the scorecard report.
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.5, maxTokens: 700 }
+    {
+      temperature: 0.5,
+      maxTokens: 700,
+      fallback: () => {
+        const scored = qaRecords.filter((record) => typeof record.overallScore === "number");
+        const avg = scored.length
+          ? Number((scored.reduce((sum, record) => sum + record.overallScore, 0) / scored.length).toFixed(1))
+          : 0;
+
+        return JSON.stringify({
+          strengths: ["You completed the interview flow and responded to the questions."],
+          improvements: ["Give more specific examples with measurable impact.", "Add more technical depth and structure to your answers."],
+          summary: `Local fallback feedback: your average overall score was ${avg}/10 for ${technology}.`,
+          resumeAlignment: "The live answers were evaluated locally because the AI service was unavailable.",
+          recommendedNextSteps: ["Review core concepts in your chosen domain.", "Practice answering in concise STAR format."],
+        });
+      },
+    }
   );
 
   const parsed = safeParseJSON(raw);

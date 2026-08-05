@@ -65,65 +65,142 @@ const TAKEAWAYS = [
 
 const TOPICS = ["Resume review", "Behavioral answers", "Technical depth", "Communication", "Confidence", "Next steps"];
 
+const PRODUCT_HIGHLIGHTS = [
+  { label: "Profile tuned", value: "Role + skills" },
+  { label: "Interview mode", value: "Voice / text" },
+  { label: "Feedback depth", value: "Question level" },
+  { label: "Scorecards", value: "Charts + insights" },
+];
+
+const PREVIEW_STEPS = [
+  "Upload a resume and set your target role.",
+  "Get a live mock interview with adaptive questions.",
+  "Review a scorecard with charts, strengths, and gaps.",
+];
+
 export default function Landing() {
   const { user } = useAuth();
   const primaryHref = user ? "/dashboard" : "/signup";
 
   return (
-    <div className="shell">
-      {/* Hero */}
-      <section className="hero">
-        <div className="eyebrow">
-          <span className="pulse-dot" />
-          Calm practice for confident interviews
+    <div className="shell landing-shell">
+      <section className="hero hero-split">
+        <div className="hero-copy">
+          <span className="eyebrow">
+            <span className="pulse-dot" />
+            Modern AI mock interview platform
+          </span>
+
+          <h1>
+            Interview practice that feels <span className="grad-text">smart</span>,
+            polished, and worth coming back to
+          </h1>
+
+          <p className="lead">
+            Scan a resume, personalize the role, run a focused mock interview, and
+            finish with charts, scorecards, and next steps that are actually useful.
+          </p>
+
+          <div className="hero-actions">
+            <Link to={primaryHref} className="btn btn-primary btn-lg">
+              Start practicing
+            </Link>
+            <a href="#how-it-works" className="btn btn-ghost btn-lg">
+              Explore the flow
+            </a>
+          </div>
+
+          <div className="hero-meta-row">
+            {PRODUCT_HIGHLIGHTS.map((item) => (
+              <div className="hero-meta-card" key={item.label}>
+                <div className="hero-meta-label">{item.label}</div>
+                <div className="hero-meta-value">{item.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hero-note-stack">
+            <p className="hero-note">Voice or text mode - fullscreen interview focus - rich score visualization</p>
+            <div className="hero-tag-row">
+              <span className="topic-pill">Resume intelligence</span>
+              <span className="topic-pill">Adaptive questions</span>
+              <span className="topic-pill">Analytics dashboard</span>
+            </div>
+          </div>
         </div>
 
-        <h1>
-          Interview practice that feels <span className="grad-text">clear</span>,
-          calm, and genuinely useful
-        </h1>
+        <div className="hero-preview">
+          <div className="preview-orb preview-orb-a" />
+          <div className="preview-orb preview-orb-b" />
 
-        <p className="lead">
-          Interview scans your resume, turns it into a guided practice plan,
-          and runs a focused mock interview that shows what to say, what to
-          strengthen, and what already makes you stand out.
-        </p>
+          <div className="preview-card preview-card-main">
+            <div className="preview-card-head">
+              <div>
+                <div className="overview-label">Live session preview</div>
+                <h3>Interview OS</h3>
+              </div>
+              <span className="status-pill completed">Active</span>
+            </div>
 
-        <div className="hero-actions">
-          <Link to={primaryHref} className="btn btn-primary btn-lg">
-            Start practicing →
-          </Link>
-          <a href="#how-it-works" className="btn btn-ghost btn-lg">
-            See how it works
-          </a>
-        </div>
-        <p className="hero-note">Voice or text mode · quick setup · supportive feedback</p>
+            <div className="preview-score-grid">
+              <div className="preview-score-tile">
+                <span className="preview-score-value">92</span>
+                <span className="preview-score-label">Profile fit</span>
+              </div>
+              <div className="preview-score-tile">
+                <span className="preview-score-value">08</span>
+                <span className="preview-score-label">Focus areas</span>
+              </div>
+              <div className="preview-score-tile">
+                <span className="preview-score-value">10</span>
+                <span className="preview-score-label">Questions</span>
+              </div>
+            </div>
 
-        <div className="insight-strip">
-          <div className="insight-item">
-            <div className="lab">Strong signals</div>
-            <div className="copy">Highlights the strengths that deserve to be said with confidence.</div>
+            <div className="preview-timeline">
+              {PREVIEW_STEPS.map((step, index) => (
+                <div className="preview-step" key={step}>
+                  <div className="preview-step-dot">{index + 1}</div>
+                  <p>{step}</p>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="insight-item">
-            <div className="lab">Clear focus</div>
-            <div className="copy">Shows the 1-2 answers that would raise the biggest interview quality gain.</div>
-          </div>
-          <div className="insight-item">
-            <div className="lab">Role fit</div>
-            <div className="copy">Connects the resume to the most suitable interview path before practice begins.</div>
-          </div>
-          <div className="insight-item">
-            <div className="lab">Next step</div>
-            <div className="copy">Ends with a short plan that helps a candidate improve with purpose.
+
+          <div className="preview-card preview-card-compact">
+            <div className="overview-label">Today's output</div>
+            <div className="preview-bullet-list">
+              <div>Cleaner answers</div>
+              <div>Better role targeting</div>
+              <div>Charts for growth</div>
             </div>
           </div>
         </div>
       </section>
 
+      <div className="insight-strip insight-strip-modern">
+        <div className="insight-item insight-item-strong">
+          <div className="lab">Strong signals</div>
+          <div className="copy">Highlights the strengths that deserve to be said with confidence.</div>
+        </div>
+        <div className="insight-item">
+          <div className="lab">Clear focus</div>
+          <div className="copy">Shows the 1-2 answers that would raise the biggest interview quality gain.</div>
+        </div>
+        <div className="insight-item">
+          <div className="lab">Role fit</div>
+          <div className="copy">Connects the resume to the most suitable interview path before practice begins.</div>
+        </div>
+        <div className="insight-item">
+          <div className="lab">Next step</div>
+          <div className="copy">Ends with a short plan that helps a candidate improve with purpose.</div>
+        </div>
+      </div>
+
       {/* Features */}
       <section className="section" id="features">
         <div className="section-head">
-          <h2>Everything useful in one calm flow</h2>
+          <h2>Everything useful in one polished product flow</h2>
           <p>From the resume scan to the final scorecard, every step is focused on clarity, confidence, and practical improvement.</p>
         </div>
 
@@ -143,7 +220,7 @@ export default function Landing() {
       <section className="section">
         <div className="section-head">
           <h2>What you actually get from each session</h2>
-          <p>Not just a score, but helpful context that makes interview practice more intentional.</p>
+          <p>Not just a score, but a set of signals, charts, and next steps that make progress easier to see.</p>
         </div>
 
         <div className="takeaway-grid">
@@ -164,11 +241,36 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="section">
+        <div className="section-head">
+          <h2>A cleaner dashboard for modern interview prep</h2>
+          <p>Profile insights, resume signals, and interview history are arranged to feel denser, richer, and easier to scan.</p>
+        </div>
+
+        <div className="feature-grid feature-grid-compact">
+          <div className="feature-card feature-card-spotlight">
+            <div className="feature-icon" style={{ background: "linear-gradient(135deg, #6f948f, #b28b5f)" }}>✨</div>
+            <h3>Profile intelligence</h3>
+            <p>See role fit, skills, experience, and practice history in one view.</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon" style={{ background: "linear-gradient(135deg, #b8d7e2, #9cc9bf)" }}>📈</div>
+            <h3>Charts and score trends</h3>
+            <p>Radar, trend, and comparison charts make performance easy to interpret.</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon" style={{ background: "linear-gradient(135deg, #d9c6a5, #b8d7e2)" }}>⚡</div>
+            <h3>Faster interview flow</h3>
+            <p>Fullscreen mode and a focused interview room keep the candidate locked in.</p>
+          </div>
+        </div>
+      </section>
+
       {/* How it works */}
       <section className="section" id="how-it-works">
         <div className="section-head">
           <h2>From profile to progress in four steps</h2>
-          <p>A simple flow that helps an interviewer practice with structure instead of pressure.</p>
+          <p>A simple flow that helps a candidate practice with structure instead of pressure.</p>
         </div>
 
         <div className="steps-grid">
@@ -184,11 +286,10 @@ export default function Landing() {
 
       {/* CTA */}
       <div className="cta-band">
-        <h2>Ready to practice with more clarity?</h2>
-        <p>Upload your resume and get a focused interview session that shows what to keep, what to improve, and what to say next.
-        </p>
+        <h2>Ready to practice inside a more modern interview experience?</h2>
+        <p>Upload your resume and get a focused interview session that shows what to keep, what to improve, and what to say next.</p>
         <Link to={primaryHref} className="btn btn-primary btn-lg">
-          Start now →
+          Start now
         </Link>
       </div>
 

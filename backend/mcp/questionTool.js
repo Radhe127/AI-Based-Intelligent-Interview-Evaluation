@@ -21,7 +21,14 @@ Generate ONE new, non-repetitive, conversational interview question suited to th
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.7, maxTokens: 300 }
+    {
+      temperature: 0.7,
+      maxTokens: 300,
+      fallback: () =>
+        JSON.stringify({
+          question: `Describe a recent ${technology} project and one technical challenge you solved at ${difficulty.toLowerCase()} level.`,
+        }),
+    }
   );
 
   const parsed = safeParseJSON(raw);

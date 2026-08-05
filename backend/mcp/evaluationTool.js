@@ -21,7 +21,23 @@ Evaluate correctness, technical depth, and verbal communication clarity.
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.3, maxTokens: 300 }
+    {
+      temperature: 0.3,
+      maxTokens: 300,
+      fallback: () => {
+        const length = answer.trim().length;
+        const technicalScore = length > 180 ? 7 : length > 90 ? 6 : 4;
+        const communicationScore = length > 180 ? 7 : length > 90 ? 6 : 5;
+        const overallScore = Math.round((technicalScore + communicationScore) / 2);
+
+        return JSON.stringify({
+          technicalScore,
+          communicationScore,
+          overallScore,
+          remarks: "AI evaluation service is unavailable right now, so a local fallback score was used.",
+        });
+      },
+    }
   );
 
   const parsed = safeParseJSON(raw);

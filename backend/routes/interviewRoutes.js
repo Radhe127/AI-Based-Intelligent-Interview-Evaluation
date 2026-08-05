@@ -26,18 +26,16 @@ router.post("/start", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "Upload and scan a resume before starting an interview" });
     }
 
-    const candidateContext = await getCandidateContext(req.userId);
-
     const interview = await Interview.create({
       userId: req.userId,
       resumeId: resume._id,
-      technology: technology || candidateContext.suggestedDomain || "Java",
+      technology: technology || resume.suggestedDomain || "Java",
       difficulty: difficulty || "Intermediate",
       mode: mode === "text" ? "text" : "voice",
       status: "in-progress",
     });
 
-    res.json({ interview, candidateContext });
+    res.json({ interview });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || "Failed to start interview" });

@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
@@ -7,14 +7,18 @@ import Landing from "./pages/Landing.jsx";
 import Signup from "./pages/Signup.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import Profile from "./pages/Profile.jsx";
 import SetupInterview from "./pages/SetupInterview.jsx";
 import InterviewRoom from "./pages/InterviewRoom.jsx";
 import Scorecard from "./pages/Scorecard.jsx";
 
 export default function App() {
+  const location = useLocation();
+  const hideNavbar = location.pathname.startsWith("/interview/");
+
   return (
     <div className="page-bg">
-      <Navbar />
+      {!hideNavbar && <Navbar />}
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/signup" element={<Signup />} />
@@ -32,6 +36,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <SetupInterview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
             </ProtectedRoute>
           }
         />

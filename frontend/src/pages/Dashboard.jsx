@@ -3,6 +3,46 @@ import { Link, useNavigate } from "react-router-dom";
 import { uploadResume, fetchLatestResume, listInterviews } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
+function ProfileChart({ name, targetRole, experience, skillsCount, resumeScore, interviewCount }) {
+  const bars = [
+    { label: "Role fit", value: targetRole ? 85 : 45 },
+    { label: "Experience", value: experience && experience !== "Fresher" ? 78 : 52 },
+    { label: "Skills", value: Math.min(100, skillsCount * 12) },
+    { label: "Resume", value: resumeScore ? Math.min(100, resumeScore) : 40 },
+    { label: "Practice", value: Math.min(100, interviewCount * 14) },
+  ];
+
+  return (
+    <div className="profile-chart-card card">
+      <div className="overview-label">Profile snapshot</div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
+        <h3 style={{ fontSize: 20 }}>{name || "Your profile"}</h3>
+        <span className="status-pill completed">Profile focus</span>
+      </div>
+      <p className="muted" style={{ marginBottom: 16 }}>
+        A quick view of how complete and interview-ready your profile looks.
+      </p>
+
+      <div className="profile-bars">
+        {bars.map((bar) => (
+          <div className="profile-bar-row" key={bar.label}>
+            <div className="profile-bar-label">{bar.label}</div>
+            <div className="profile-bar-track">
+              <span className="profile-bar-fill" style={{ width: `${bar.value}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="profile-chart-footer">
+        <span>{targetRole || "No target role set"}</span>
+        <span>{skillsCount} skills</span>
+        <span>{interviewCount} interviews</span>
+      </div>
+    </div>
+  );
+}
+
 function ScoreBadge({ label, value }) {
   const score = value ?? 0;
   const color = score >= 7 ? "var(--color-success, #2d9e6b)" : score >= 5 ? "var(--color-warn, #d97706)" : "var(--color-danger, #dc2626)";
@@ -62,7 +102,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell dashboard-shell">
       <div className="dash-header">
         <div className="dash-greeting">
           <h2>Welcome back, {user?.name?.split(" ")[0]}</h2>
@@ -147,6 +187,15 @@ export default function Dashboard() {
           <p>{completedInterviews} completed · {activeInterviews} active</p>
         </div>
       </div>
+
+      <ProfileChart
+        name={user?.name}
+        targetRole={user?.targetRole}
+        experience={user?.experience}
+        skillsCount={user?.skills?.length || 0}
+        resumeScore={resume?.atsScore || 0}
+        interviewCount={interviews.length}
+      />
 
       {/* Resume card */}
       <div className="card">

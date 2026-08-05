@@ -8,7 +8,7 @@ const NVIDIA_API_URL = _rawUrl.endsWith("/chat/completions")
 const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "openai/gpt-oss-20b";
 
 async function callNvidiaModel(messages, options = {}) {
-  const { temperature = 0.6, maxTokens = 1024 } = options;
+  const { temperature = 0.6, maxTokens = 1024, fallback = null } = options;
 
   if (!process.env.NVIDIA_API_KEY) {
     throw new Error("NVIDIA_API_KEY is not set in .env");
@@ -41,7 +41,10 @@ async function callNvidiaModel(messages, options = {}) {
   } catch (err) {
     const detail = err.response?.data || err.message;
     console.error("NVIDIA API error:", detail);
-    throw new Error("Failed to get a response from the AI model");
+    if (typeof fallback === "function") {
+      return fallback(detail);
+    }
+    throw new Error(`Failed to get a response from the AI model: ${typeof detail === "string" ? detail : JSON.stringify(detail)}`);
   }
 }
 

@@ -17,9 +17,20 @@ export default function SetupInterview() {
     setError("");
     setLoading(true);
     try {
+      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        try {
+          await document.documentElement.requestFullscreen();
+        } catch {
+          // Fullscreen is optional; continue with the interview if the browser blocks it.
+        }
+      }
+
       const res = await startInterview({ technology, difficulty, mode });
       navigate(`/interview/${res.data.interview._id}`);
     } catch (err) {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
       setError(err.response?.data?.error || "Failed to start interview");
     } finally {
       setLoading(false);
