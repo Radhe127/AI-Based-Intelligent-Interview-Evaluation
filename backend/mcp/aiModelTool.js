@@ -1,7 +1,10 @@
 const axios = require("axios");
 
-const NVIDIA_API_URL =
-  process.env.NVIDIA_API_URL || "https://integrate.api.nvidia.com/v1/chat/completions";
+// Accept either the full completions URL or just the base v1 URL
+const _rawUrl = process.env.NVIDIA_API_URL || "https://integrate.api.nvidia.com/v1";
+const NVIDIA_API_URL = _rawUrl.endsWith("/chat/completions")
+  ? _rawUrl
+  : _rawUrl.replace(/\/$/, "") + "/chat/completions";
 const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "openai/gpt-oss-20b";
 
 async function callNvidiaModel(messages, options = {}) {

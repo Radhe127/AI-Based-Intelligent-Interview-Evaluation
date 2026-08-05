@@ -12,7 +12,14 @@ const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:5000" }));
+// Allow any configured origin, a comma-separated list, or all origins in dev
+const rawOrigin = process.env.CLIENT_ORIGIN;
+const corsOrigin = rawOrigin
+  ? rawOrigin.includes(",")
+    ? rawOrigin.split(",").map((s) => s.trim())
+    : rawOrigin
+  : true; // allow all origins when CLIENT_ORIGIN is not set (local / Replit dev)
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/api/health", (req, res) => {

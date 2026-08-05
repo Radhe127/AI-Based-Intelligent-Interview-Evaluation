@@ -70,7 +70,7 @@ function detectSuggestedDomain(skills, rawText) {
     return "React";
   }
   if (lowerSkills.some((skill) => skill.includes("sql") || skill.includes("python"))) return "DSA";
-  if (lowerText.includes("full stack") || (lowerSkills.includes("React") && lowerSkills.some((skill) => skill.includes("node")))) {
+  if (lowerText.includes("full stack") || (lowerSkills.some((s) => s.includes("react")) && lowerSkills.some((skill) => skill.includes("node")))) {
     return "Full Stack";
   }
   if (lowerText.includes("hr") || lowerText.includes("communication") || lowerText.includes("behavioral")) {
