@@ -65,14 +65,19 @@ function detectSuggestedDomain(skills, rawText) {
   const lowerSkills = skills.map((skill) => skill.toLowerCase());
   const lowerText = rawText.toLowerCase();
 
-  if (lowerSkills.some((skill) => skill.includes("spring") || skill.includes("java"))) return "Spring Boot";
+  // Use exact equality to avoid "javascript".includes("java") false-positive
+  if (lowerSkills.some((skill) => skill === "spring" || skill === "java" || skill === "spring boot")) return "Spring Boot";
+  // Full Stack must be checked before the broader React branch so it is reachable
+  if (
+    lowerText.includes("full stack") ||
+    (lowerSkills.some((s) => s.includes("react")) && lowerSkills.some((s) => s.includes("node")))
+  ) {
+    return "Full Stack";
+  }
   if (lowerSkills.some((skill) => skill.includes("react") || skill.includes("javascript") || skill.includes("typescript"))) {
     return "React";
   }
   if (lowerSkills.some((skill) => skill.includes("sql") || skill.includes("python"))) return "DSA";
-  if (lowerText.includes("full stack") || (lowerSkills.some((s) => s.includes("react")) && lowerSkills.some((skill) => skill.includes("node")))) {
-    return "Full Stack";
-  }
   if (lowerText.includes("hr") || lowerText.includes("communication") || lowerText.includes("behavioral")) {
     return "HR";
   }
